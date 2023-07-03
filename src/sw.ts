@@ -22,33 +22,34 @@ type Response = {
   headers: { [key: string]: string };
 };
 
-let nextReportIndex = 0;
 const reportResponses = new Map<string, Response>();
 self.addEventListener('fetch', (event) => {
   console.log('Service Worker intercepting fetch event for:', event.request.url);
   const url = new URL(event.request.url);
-  if (url.pathname === '/upload') {
+  if (url.pathname === '/report/upload') {
     const reportUrl = url.searchParams.get('url')!;
-    const currentIndex = nextReportIndex;
-    nextReportIndex++;
     return event.respondWith((async () => {
       const reader = new zipjs.ZipReader(new zipjs.HttpReader(reportUrl, { mode: 'cors', preventHeadRequest: true } as any), { useWebWorkers: false });
       const entries = await reader.getEntries();
+      reportResponses.clear()
+      const dataFiles: { url: string, blob: Blob }[] = []
       for (const entry of entries) {
         if (entry.directory)
           continue;
-        const blob = await entry.getData!(new zipjs.BlobWriter());
-        const filename = `/report/${currentIndex}/${entry.filename}`
+        const blob: Blob = await entry.getData!(new zipjs.BlobWriter());
+        const filename = `/report/${entry.filename}`
         reportResponses.set(filename, {
           blob,
           headers: {
             'Content-Type': filenameToMimeType(entry.filename),
           }
         });
+        if (entry.filename.startsWith('data/')) {
+          dataFiles.push({ url: `${self.location.origin}/report/${entry.filename}`, blob });
+        }
       }
-      return new Response(JSON.stringify({
-        index: currentIndex,
-      }))
+      await writeTraceFilesToIndexDB(dataFiles)
+      return new Response()
     })());
   }
   console.log(reportResponses)
@@ -82,4 +83,26 @@ function filenameToMimeType(filename: string): string {
     return 'application/zip';
   console.log('Unknown mime type for ' + filename);
   return 'application/octet-stream';
+}
+
+
+async function writeTraceFilesToIndexDB(files: { url: string, blob: Blob }[] ) {
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('playwright-report', 1);
+    request.onerror = reject;
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      db.createObjectStore('files');
+    };
+  });
+  const tx = db.transaction('files', 'readwrite');
+  const store = tx.objectStore('files');
+  for (const file of files)
+    store.put(file.blob, file.url);
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = reject;
+  });
+  db.close();
 }

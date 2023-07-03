@@ -22,7 +22,7 @@ import * as path from 'path';
 export default defineConfig({
   base: '',
   build: {
-    emptyOutDir: false,
+    outDir: 'dist/report/',
     minify: false,
     sourcemap: true,
     rollupOptions: {

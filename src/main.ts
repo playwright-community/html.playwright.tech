@@ -5,7 +5,7 @@ if (!('serviceWorker' in navigator))
 
 (async () => {
   window.localStorage.setItem('is-playwright-report', 'true')
-  await navigator.serviceWorker.register('/service-worker.js');
+  await navigator.serviceWorker.register('service-worker.js');
   await navigator.serviceWorker.ready;
   const dropzone = document.getElementById('dropzone');
   if (!dropzone)
@@ -21,11 +21,10 @@ if (!('serviceWorker' in navigator))
       return;
     const blob = await fileToBlob(e.dataTransfer.files[0])
     const blobUrl = URL.createObjectURL(blob);
-    const response = await fetch('/upload?url=' + blobUrl, {
+    await fetch('upload?url=' + blobUrl, {
       method: 'POST',
-    }).then(r => r.json());
-    const reportUrl = `/report/${response.index}/index.html`;
-    window.open(reportUrl, '_blank');
+    });
+    window.open('/report/index.html', '_blank');
   })
 })();
 
