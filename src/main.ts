@@ -20,8 +20,11 @@ if (!('serviceWorker' in navigator))
     if (!e.dataTransfer)
       return;
     const blob = await fileToBlob(e.dataTransfer.files[0])
-    const blobUrl = URL.createObjectURL(blob);
-    await fetch('upload?url=' + blobUrl, {
+    const blobURL = URL.createObjectURL(blob);
+    const params = new URLSearchParams({
+      url: blobURL,
+    });
+    await fetch(`upload?${params}`, {
       method: 'POST',
     });
     window.open('/report/index.html', '_blank');
@@ -29,10 +32,13 @@ if (!('serviceWorker' in navigator))
 })();
 
 function fileToBlob(file: File): Promise<Blob> {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       resolve(new Blob([reader.result as ArrayBuffer]));
+    };
+    reader.onerror = () => {
+      reject(reader.error);
     };
     reader.readAsArrayBuffer(file);
   });
