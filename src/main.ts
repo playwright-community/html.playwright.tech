@@ -2,6 +2,10 @@ import './style.css'
 
 if (!('serviceWorker' in navigator))
   alert("Service Worker not supported");
+if (!('indexedDB' in window))
+  alert("IndexedDB not supported");
+if (!('localStorage' in window))
+  alert("localStorage not supported");
 
 (async () => {
   window.localStorage.setItem('is-playwright-report', 'true')
@@ -24,9 +28,15 @@ if (!('serviceWorker' in navigator))
     const params = new URLSearchParams({
       url: blobURL,
     });
-    await fetch(`upload?${params}`, {
-      method: 'POST',
-    });
+    const uploadingBox = document.getElementById('uploading-box')!;
+    uploadingBox.style.display = 'block';
+    try {
+      await fetch(`upload?${params}`, {
+        method: 'POST',
+      });
+    } finally {
+      uploadingBox.style.display = 'none';
+    }
     window.open('/report/index.html', '_blank');
   })
 })();

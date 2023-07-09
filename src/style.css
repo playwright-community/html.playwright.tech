@@ -23,8 +23,9 @@ body {
   align-items: center;
 }
 
-#dropzone-text h1 {
+#dropzone-text span {
   font-size: 2rem;
   color: #000;
   text-align: center;
+  display: block;
 }
