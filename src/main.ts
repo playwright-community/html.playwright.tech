@@ -26,6 +26,15 @@ if (!('localStorage' in window))
   const dropzone = document.getElementById('dropzone');
   if (!dropzone)
     return;
+  dropzone.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip';
+    input.addEventListener('change', async () => {
+      await sendToBackend(input.files![0]);
+    });
+    input.click();
+  });
   dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
     if (e.dataTransfer)
@@ -35,7 +44,10 @@ if (!('localStorage' in window))
     e.preventDefault();
     if (!e.dataTransfer)
       return;
-    const reportBlob = await fileToBlob(e.dataTransfer.files[0])
+    await sendToBackend(e.dataTransfer.files[0]);
+  });
+  async function sendToBackend(file: File) {
+    const reportBlob = await fileToBlob(file)
     const reportBlobURL = URL.createObjectURL(reportBlob);
     const params = new URLSearchParams({ url: reportBlobURL });
     const uploadingBox = document.getElementById('uploading-box')!;
@@ -48,7 +60,7 @@ if (!('localStorage' in window))
       uploadingBox.style.display = 'none';
     }
     window.open('/report/index.html', '_blank');
-  })
+  }
 })();
 
 function fileToBlob(file: File): Promise<Blob> {

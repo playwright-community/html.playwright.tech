@@ -4,15 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build-base": "vite build && cp public/redirect.html dist/index.html",
     "build": "npm run build-base && bash trace-viewer/build.sh && cp -r trace-viewer/playwright/packages/playwright-core/lib/vite/traceViewer/ dist/trace/",
     "build-dev": "npm run build-base && cp -r ../../playwright/packages/playwright-core/lib/vite/traceViewer/ dist/trace/",
-    "preview": "vite preview"
+    "dev": "http-server dist/"
   },
   "devDependencies": {
     "@zip.js/zip.js": "2.4.2",
     "typescript": "^5.0.2",
-    "vite": "^4.3.9"
+    "vite": "^4.3.9",
+    "http-server": "^14.1.1"
   }
 }
