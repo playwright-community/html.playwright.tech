@@ -17,12 +17,12 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-type Response = {
+type CachedResponse = {
   blob: Blob;
   headers: { [key: string]: string };
 };
 
-const responseCache = new Map<string, Response>();
+const responseCache = new Map<string, CachedResponse>();
 
 let messageCount = 0;
 const responseCallbacks = new Map<number, (data: any) => void>();
@@ -63,6 +63,9 @@ self.addEventListener('fetch', async (event) => {
             'Content-Type': filenameToMimeType(entry.filename),
           }
         });
+        // data/ files are usually traces. We need to let the Trace Viewer SW know about them.
+        // We do this by sending a message to the client, which creates a mapping from data URLs to blob URLs.
+        // These Blob URLs then can be opened by the Trace Viewer SW.
         if (entry.filename.startsWith('data/')) {
           dataFiles.push({ url: `${self.location.origin}/report/${entry.filename}`, blob });
         }
