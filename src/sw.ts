@@ -23,11 +23,31 @@ type Response = {
 };
 
 const responseCache = new Map<string, Response>();
-self.addEventListener('fetch', (event) => {
+
+let messageCount = 0;
+const responseCallbacks = new Map<number, (data: any) => void>();
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  const listener = responseCallbacks.get(event.data.id);
+  if (listener) {
+    listener(event.data.payload);
+    responseCallbacks.delete(event.data.id);
+  }
+});
+
+function sendMessageToClient(client: Client, message: any): Promise<any> {
+  return new Promise(resolve => {
+    const id = ++messageCount;
+    responseCallbacks.set(id, resolve);
+    client.postMessage({ ...message, id });
+  });
+}
+
+self.addEventListener('fetch', async (event) => {
   const url = new URL(event.request.url);
   if (url.pathname === '/report/upload') {
     const reportUrl = url.searchParams.get('url')!;
     return event.respondWith((async () => {
+      const client = event.clientId ? await self.clients.get(event.clientId) : null;
       const reader = new zipjs.ZipReader(new zipjs.HttpReader(reportUrl, { mode: 'cors', preventHeadRequest: true } as any), { useWebWorkers: false });
       const entries = await reader.getEntries();
       responseCache.clear()
@@ -47,7 +67,8 @@ self.addEventListener('fetch', (event) => {
           dataFiles.push({ url: `${self.location.origin}/report/${entry.filename}`, blob });
         }
       }
-      await writeTraceFilesToIndexDB(dataFiles)
+      const dataURLs2blobURLs = await sendMessageToClient(client!, { type: 'dataFiles', dataFiles });
+      await rewriteHTMLReportDataURLs(dataURLs2blobURLs);
       return new Response()
     })());
   }
@@ -59,6 +80,26 @@ self.addEventListener('fetch', (event) => {
   }
   return event.respondWith(fetch(event.request));
 });
+
+async function rewriteHTMLReportDataURLs(mapping: Map<string, string>) {
+  const record = responseCache.get('/report/index.html')!;
+  let indexHTML = await record.blob.text();
+  indexHTML = indexHTML.replace(/return`trace\/index\.html\?\${(e)\.map\(\(t,n\)=>`trace=\${new URL\(t\.path,window\.location\.href\)}`\)\.join\("&"\)}`/, (_: string, tracesVarName: string) => {
+    return `
+    const mapping = ${JSON.stringify(Object.fromEntries(mapping))};
+    return '../trace/index.html?' + ${tracesVarName}.map((a, i) => {
+      let traceURL = new URL(a.path, window.location.href).toString();
+      if (traceURL in mapping)
+        traceURL = mapping[traceURL];
+      return 'trace=' + traceURL;
+    }).join('&');
+  `
+  });
+  responseCache.set('/report/index.html', {
+    ...record,
+    blob: new Blob([indexHTML], { type: 'text/html' }),
+  });
+}
 
 const filenameToMimeTypeMapping = new Map<string, string>([
   ['html', 'text/html'],
@@ -78,26 +119,4 @@ function filenameToMimeType(filename: string): string {
     return filenameToMimeTypeMapping.get(extension)!;
   console.log('Unknown mime type for ' + filename);
   return 'application/octet-stream';
-}
-
-async function writeTraceFilesToIndexDB(files: { url: string, blob: Blob }[] ) {
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('playwright-report', 1);
-    request.onerror = reject;
-    request.onsuccess = () => resolve(request.result);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      db.createObjectStore('files');
-    };
-  });
-  const tx = db.transaction('files', 'readwrite');
-  const store = tx.objectStore('files');
-  store.clear();
-  for (const file of files)
-    store.put(file.blob, file.url);
-  await new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = reject;
-  });
-  db.close();
 }

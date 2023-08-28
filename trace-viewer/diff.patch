@@ -1,0 +1,13 @@
+diff --git a/packages/trace-viewer/src/ui/workbenchLoader.tsx b/packages/trace-viewer/src/ui/workbenchLoader.tsx
+index c8e3d4171..e1d7c4f56 100644
+--- a/packages/trace-viewer/src/ui/workbenchLoader.tsx
++++ b/packages/trace-viewer/src/ui/workbenchLoader.tsx
+@@ -96,7 +96,7 @@ export const WorkbenchLoader: React.FunctionComponent<{
+       }).then(sendMessage => {
+         sendMessage('ready');
+       });
+-    } else if (!newTraceURLs.some(url => url.startsWith('blob:'))) {
++    } else {
+       // Don't re-use blob file URLs on page load (results in Fetch error)
+       setTraceURLs(newTraceURLs);
+     }

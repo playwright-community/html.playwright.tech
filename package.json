@@ -5,13 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build-base": "tsc && vite build && cp public/redirect.html dist/index.html",
-    "build": "npm run build-base && cp -r node_modules/playwright-core/lib/webpack/traceViewer/ dist/trace/",
-    "build-dev": "npm run build-base && cp -r ../../playwright/packages/playwright-core/lib/webpack/traceViewer/ dist/trace/",
+    "build-base": "vite build && cp public/redirect.html dist/index.html",
+    "build": "npm run build-base && bash trace-viewer/build.sh && cp -r trace-viewer/playwright/packages/playwright-core/lib/vite/traceViewer/ dist/trace/",
+    "build-dev": "npm run build-base && cp -r ../../playwright/packages/playwright-core/lib/vite/traceViewer/ dist/trace/",
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@playwright/test": "^1.35.1",
     "@zip.js/zip.js": "2.4.2",
     "typescript": "^5.0.2",
     "vite": "^4.3.9"

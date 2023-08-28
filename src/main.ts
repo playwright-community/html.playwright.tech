@@ -11,6 +11,18 @@ if (!('localStorage' in window))
   window.localStorage.setItem('is-playwright-report', 'true')
   await navigator.serviceWorker.register('service-worker.js');
   await navigator.serviceWorker.ready;
+  {
+    // Convert TraceViewer Blob from SW to Blob URLs. (We can't create the URLs in SW.)
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data.type === 'dataFiles') {
+        const dataFiles = event.data.dataFiles as { url: string, blob: Blob }[];
+        const url2blobURL = new Map<string, string>();
+        for (const { url, blob } of dataFiles)
+          url2blobURL.set(url, URL.createObjectURL(blob));
+        event.source?.postMessage({ type: 'url2blobURL', payload: url2blobURL, id: event.data.id });
+      }
+    });
+  }
   const dropzone = document.getElementById('dropzone');
   if (!dropzone)
     return;
@@ -23,11 +35,9 @@ if (!('localStorage' in window))
     e.preventDefault();
     if (!e.dataTransfer)
       return;
-    const blob = await fileToBlob(e.dataTransfer.files[0])
-    const blobURL = URL.createObjectURL(blob);
-    const params = new URLSearchParams({
-      url: blobURL,
-    });
+    const reportBlob = await fileToBlob(e.dataTransfer.files[0])
+    const reportBlobURL = URL.createObjectURL(reportBlob);
+    const params = new URLSearchParams({ url: reportBlobURL });
     const uploadingBox = document.getElementById('uploading-box')!;
     uploadingBox.style.display = 'block';
     try {
